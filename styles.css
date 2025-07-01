@@ -131,6 +131,13 @@ body {
     animation: fadeInUp 0.8s ease 0.4s both;
 }
 
+.hero-location {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 2rem;
+    animation: fadeInUp 0.8s ease 0.5s both;
+}
+
 .hero-buttons {
     display: flex;
     gap: 1rem;
