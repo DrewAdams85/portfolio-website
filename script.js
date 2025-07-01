@@ -120,21 +120,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Physics-based bubble animation
+// Physics-based bubble animation with mouse interaction
 class BubblePhysics {
     constructor() {
         this.shapes = document.querySelectorAll('.shape');
         this.hero = document.querySelector('.hero');
-        this.heroRect = this.hero.getBoundingClientRect();
         this.bubbles = [];
-        this.lastScrollY = window.scrollY;
-        this.scrollVelocity = 0;
-        this.gravity = 0.2; // Reduced for slower movement
-        this.bounceDamping = 0.6; // Slightly less bouncy
-        this.maxVelocity = 12; // Reduced max speed
-        this.lastScrollTime = Date.now();
-        this.resetDelay = 3000; // 3 seconds
-        this.isResetting = false;
+        this.mouseX = -1000;
+        this.mouseY = -1000;
+        this.repelRadius = 150; // Distance at which mouse repels bubbles
+        this.repelForce = 5; // Strength of repulsion
+        this.resetDelay = 2500; // 2.5 seconds
+        this.gravity = 0.1; // Light gravity
+        this.bounceDamping = 0.7; // Light bounce
         
         this.init();
     }
@@ -145,101 +143,114 @@ class BubblePhysics {
             const rect = shape.getBoundingClientRect();
             const heroRect = this.hero.getBoundingClientRect();
             
+            // Get computed styles to find initial position
+            const computedStyle = window.getComputedStyle(shape);
+            const initialX = parseFloat(computedStyle.left) || 0;
+            const initialY = parseFloat(computedStyle.top) || 0;
+            
             this.bubbles.push({
                 element: shape,
-                x: 0,
-                y: rect.top - heroRect.top,
+                x: initialX,
+                y: initialY,
                 vx: 0,
                 vy: 0,
-                originalX: 0,
-                originalY: rect.top - heroRect.top,
-                radius: rect.width / 2
+                originalX: initialX,
+                originalY: initialY,
+                radius: rect.width / 2,
+                lastRepelTime: 0
             });
         });
         
         // Start animation loop
         this.animate();
         
-        // Add scroll listener
-        window.addEventListener('scroll', () => this.handleScroll());
+        // Add mouse listener
+        this.hero.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        this.hero.addEventListener('mouseleave', () => this.handleMouseLeave());
     }
     
-    handleScroll() {
-        const currentScrollY = window.scrollY;
-        this.scrollVelocity = (currentScrollY - this.lastScrollY) * 0.3; // Reduced for smoother movement
-        this.scrollVelocity = Math.max(-this.maxVelocity, Math.min(this.maxVelocity, this.scrollVelocity));
-        this.lastScrollY = currentScrollY;
-        this.lastScrollTime = Date.now();
-        this.isResetting = false;
+    handleMouseMove(e) {
+        const rect = this.hero.getBoundingClientRect();
+        this.mouseX = e.clientX - rect.left;
+        this.mouseY = e.clientY - rect.top;
+    }
+    
+    handleMouseLeave() {
+        this.mouseX = -1000;
+        this.mouseY = -1000;
     }
     
     updatePhysics() {
         const currentTime = Date.now();
-        const timeSinceScroll = currentTime - this.lastScrollTime;
-        
-        // Check if we should start resetting
-        if (timeSinceScroll > this.resetDelay && !this.isResetting) {
-            this.isResetting = true;
-        }
         
         this.bubbles.forEach((bubble, index) => {
-            // Calculate reset factor (0 to 1)
-            const resetFactor = this.isResetting ? Math.min((timeSinceScroll - this.resetDelay) / 2000, 1) : 0;
+            // Calculate distance from mouse
+            const dx = this.mouseX - (bubble.x + bubble.radius);
+            const dy = this.mouseY - (bubble.y + bubble.radius);
+            const distance = Math.sqrt(dx * dx + dy * dy);
             
-            // Apply scroll-based force (reduced when resetting)
-            bubble.vy -= this.scrollVelocity * 0.2 * (1 - resetFactor);
+            // Apply mouse repulsion if close enough
+            if (distance < this.repelRadius && distance > 0) {
+                // Calculate repulsion force
+                const force = (1 - distance / this.repelRadius) * this.repelForce;
+                const angle = Math.atan2(dy, dx);
+                
+                // Apply force in opposite direction
+                bubble.vx -= Math.cos(angle) * force;
+                bubble.vy -= Math.sin(angle) * force;
+                
+                bubble.lastRepelTime = currentTime;
+            }
             
-            // Apply gravity (reduced when resetting)
-            bubble.vy += this.gravity * (1 - resetFactor);
-            
-            // Apply some floating motion
-            const time = currentTime * 0.0005; // Slower rotation
-            const floatX = Math.sin(time + index) * 20 * resetFactor;
-            const floatY = Math.sin(time * 1.3 + index) * 15 * resetFactor;
+            // Apply gravity
+            bubble.vy += this.gravity;
             
             // Update position
+            bubble.x += bubble.vx;
             bubble.y += bubble.vy;
             
-            // Get hero boundaries relative to viewport
-            const heroBottom = this.hero.offsetHeight - bubble.radius * 2;
-            const heroTop = -bubble.radius;
+            // Get hero boundaries
+            const heroWidth = this.hero.offsetWidth;
+            const heroHeight = this.hero.offsetHeight;
             
             // Check boundaries and bounce
-            if (bubble.y > heroBottom) {
-                bubble.y = heroBottom;
-                bubble.vy *= -this.bounceDamping * 0.3; // Very light bounce
-                // Move towards bottom left when bouncing
-                if (!this.isResetting) {
-                    bubble.vx = -2; // Move left
-                }
-            } else if (bubble.y < heroTop) {
-                bubble.y = heroTop;
+            if (bubble.y + bubble.radius * 2 > heroHeight) {
+                bubble.y = heroHeight - bubble.radius * 2;
+                bubble.vy *= -this.bounceDamping;
+            } else if (bubble.y < 0) {
+                bubble.y = 0;
                 bubble.vy *= -this.bounceDamping;
             }
             
-            // Apply horizontal movement
-            bubble.x += bubble.vx || 0;
-            bubble.vx *= 0.95; // Horizontal air resistance
-            
-            // Apply air resistance (stronger when resetting)
-            bubble.vy *= this.isResetting ? 0.92 : 0.96;
-            
-            // Smoothly return to original position when resetting
-            if (this.isResetting) {
-                bubble.y += (bubble.originalY - bubble.y) * resetFactor * 0.05;
-                bubble.x += (bubble.originalX - bubble.x) * resetFactor * 0.05;
+            if (bubble.x + bubble.radius * 2 > heroWidth) {
+                bubble.x = heroWidth - bubble.radius * 2;
+                bubble.vx *= -this.bounceDamping;
+            } else if (bubble.x < 0) {
+                bubble.x = 0;
+                bubble.vx *= -this.bounceDamping;
             }
             
-            // Apply position with smooth floating
-            const translateY = bubble.y - bubble.originalY + floatY;
-            const translateX = bubble.x + floatX;
-            const rotation = time * 30 + index * 120; // Slower rotation
+            // Apply air resistance
+            bubble.vx *= 0.98;
+            bubble.vy *= 0.98;
             
-            bubble.element.style.transform = `translate(${translateX}px, ${translateY}px) rotate(${rotation}deg)`;
+            // Return to original position after delay
+            const timeSinceRepel = currentTime - bubble.lastRepelTime;
+            if (timeSinceRepel > this.resetDelay) {
+                const resetFactor = Math.min((timeSinceRepel - this.resetDelay) / 1000, 1);
+                bubble.x += (bubble.originalX - bubble.x) * resetFactor * 0.05;
+                bubble.y += (bubble.originalY - bubble.y) * resetFactor * 0.05;
+            }
+            
+            // Add floating animation
+            const time = currentTime * 0.001;
+            const floatX = Math.sin(time + index) * 10;
+            const floatY = Math.sin(time * 1.3 + index) * 10;
+            
+            // Apply transform
+            const rotation = time * 30 + index * 120;
+            bubble.element.style.transform = `translate(${bubble.x + floatX}px, ${bubble.y + floatY}px) rotate(${rotation}deg)`;
         });
-        
-        // Gradually reduce scroll velocity
-        this.scrollVelocity *= 0.95;
     }
     
     animate() {
@@ -256,7 +267,6 @@ class StarEffect {
         this.mouseX = 0;
         this.mouseY = 0;
         this.lastStarTime = 0;
-        this.connections = [];
         
         this.init();
     }
@@ -318,11 +328,9 @@ class StarEffect {
             size: Math.random() * 3 + 2,
             opacity: 1,
             age: 0,
-            connectionTimer: 0,
-            hasConnected: false,
             id: Date.now() + Math.random(),
             trail: [], // Store trail positions
-            maxDistance: 30,
+            maxDistance: 50,
             startX: x,
             startY: y
         };
@@ -353,10 +361,9 @@ class StarEffect {
     }
     
     updateStars() {
-        // Update stars and check for connections
+        // Update stars
         this.stars = this.stars.filter(star => {
             star.age += 16; // ~60fps
-            star.connectionTimer += 16;
             
             // Add current position to trail
             star.trail.push({ x: star.x, y: star.y, opacity: star.opacity });
@@ -379,86 +386,14 @@ class StarEffect {
             
             star.opacity = Math.max(0, 1 - star.age / 3000); // Fade out over 3 seconds
             
-            // Check for mouse connection every 700ms with 30% chance
-            if (star.connectionTimer >= 700 && !star.hasConnected && this.mouseX > 0) {
-                star.connectionTimer = 0;
-                if (Math.random() < 0.3) {
-                    // Create connection to mouse
-                    this.connections.push({
-                        x1: star.x,
-                        y1: star.y,
-                        x2: this.mouseX,
-                        y2: this.mouseY,
-                        opacity: 1,
-                        age: 0
-                    });
-                    star.hasConnected = true;
-                    
-                    // 15% chance to connect to another star
-                    if (Math.random() < 0.15) {
-                        const angle = Math.random() * Math.PI * 2;
-                        const distance = 20;
-                        const newX = star.x + Math.cos(angle) * distance;
-                        const newY = star.y + Math.sin(angle) * distance;
-                        
-                        // Create a stationary star (no shooting effect for spawned stars)
-                        const newStar = {
-                            x: newX,
-                            y: newY,
-                            vx: 0,
-                            vy: 0,
-                            size: Math.random() * 3 + 2,
-                            opacity: 1,
-                            age: 0,
-                            connectionTimer: 0,
-                            hasConnected: true,
-                            id: Date.now() + Math.random(),
-                            trail: [],
-                            maxDistance: 0,
-                            startX: newX,
-                            startY: newY
-                        };
-                        this.stars.push(newStar);
-                        
-                        // Create connection between stars
-                        this.connections.push({
-                            x1: star.x,
-                            y1: star.y,
-                            x2: newX,
-                            y2: newY,
-                            opacity: 1,
-                            age: 0
-                        });
-                    }
-                }
-            }
             
             return star.opacity > 0;
-        });
-        
-        // Update connections
-        this.connections = this.connections.filter(conn => {
-            conn.age += 16;
-            conn.opacity = Math.max(0, 1 - conn.age / 1000); // Fade out over 1 second
-            return conn.opacity > 0;
         });
     }
     
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw connections
-        this.connections.forEach(conn => {
-            this.ctx.save();
-            this.ctx.globalAlpha = conn.opacity * 0.5;
-            this.ctx.strokeStyle = '#98c1d9';
-            this.ctx.lineWidth = 1;
-            this.ctx.beginPath();
-            this.ctx.moveTo(conn.x1, conn.y1);
-            this.ctx.lineTo(conn.x2, conn.y2);
-            this.ctx.stroke();
-            this.ctx.restore();
-        });
         
         // Draw stars with trails
         this.stars.forEach(star => {
