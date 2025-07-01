@@ -306,15 +306,25 @@ class StarEffect {
     }
     
     createStar(x, y) {
+        // Random direction and speed for shooting effect
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 2 + 1; // 1-3 pixels per frame
+        
         const star = {
             x: x,
             y: y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
             size: Math.random() * 3 + 2,
             opacity: 1,
             age: 0,
             connectionTimer: 0,
             hasConnected: false,
-            id: Date.now() + Math.random()
+            id: Date.now() + Math.random(),
+            trail: [], // Store trail positions
+            maxDistance: 30,
+            startX: x,
+            startY: y
         };
         this.stars.push(star);
     }
@@ -347,6 +357,26 @@ class StarEffect {
         this.stars = this.stars.filter(star => {
             star.age += 16; // ~60fps
             star.connectionTimer += 16;
+            
+            // Add current position to trail
+            star.trail.push({ x: star.x, y: star.y, opacity: star.opacity });
+            if (star.trail.length > 10) { // Keep last 10 positions for trail
+                star.trail.shift();
+            }
+            
+            // Update position for shooting star effect
+            const distance = Math.sqrt(
+                Math.pow(star.x - star.startX, 2) + 
+                Math.pow(star.y - star.startY, 2)
+            );
+            
+            if (distance < star.maxDistance) {
+                star.x += star.vx;
+                star.y += star.vy;
+                star.vx *= 0.98; // Slow down gradually
+                star.vy *= 0.98;
+            }
+            
             star.opacity = Math.max(0, 1 - star.age / 3000); // Fade out over 3 seconds
             
             // Check for mouse connection every 700ms with 30% chance
@@ -371,15 +401,22 @@ class StarEffect {
                         const newX = star.x + Math.cos(angle) * distance;
                         const newY = star.y + Math.sin(angle) * distance;
                         
+                        // Create a stationary star (no shooting effect for spawned stars)
                         const newStar = {
                             x: newX,
                             y: newY,
+                            vx: 0,
+                            vy: 0,
                             size: Math.random() * 3 + 2,
                             opacity: 1,
                             age: 0,
                             connectionTimer: 0,
                             hasConnected: true,
-                            id: Date.now() + Math.random()
+                            id: Date.now() + Math.random(),
+                            trail: [],
+                            maxDistance: 0,
+                            startX: newX,
+                            startY: newY
                         };
                         this.stars.push(newStar);
                         
@@ -423,8 +460,30 @@ class StarEffect {
             this.ctx.restore();
         });
         
-        // Draw stars
+        // Draw stars with trails
         this.stars.forEach(star => {
+            // Draw trail
+            if (star.trail.length > 1) {
+                this.ctx.save();
+                this.ctx.strokeStyle = '#ee6c4d';
+                this.ctx.lineCap = 'round';
+                
+                for (let i = 1; i < star.trail.length; i++) {
+                    const prev = star.trail[i - 1];
+                    const curr = star.trail[i];
+                    
+                    this.ctx.globalAlpha = (i / star.trail.length) * curr.opacity * 0.5;
+                    this.ctx.lineWidth = (i / star.trail.length) * star.size * 0.8;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(prev.x, prev.y);
+                    this.ctx.lineTo(curr.x, curr.y);
+                    this.ctx.stroke();
+                }
+                this.ctx.restore();
+            }
+            
+            // Draw star
             this.drawStar(star.x, star.y, star.size, star.opacity);
         });
     }
