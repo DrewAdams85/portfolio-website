@@ -277,9 +277,11 @@ class StarEffect {
         this.canvas.style.top = '0';
         this.canvas.style.left = '0';
         this.canvas.style.pointerEvents = 'none';
-        this.canvas.style.zIndex = '1';
+        this.canvas.style.zIndex = '0';
         this.aboutSection.style.position = 'relative';
-        this.aboutSection.appendChild(this.canvas);
+        
+        // Insert canvas as first child so it's behind all content
+        this.aboutSection.insertBefore(this.canvas, this.aboutSection.firstChild);
         
         this.ctx = this.canvas.getContext('2d');
         this.resize();
