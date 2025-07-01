@@ -107,7 +107,7 @@ window.addEventListener('scroll', () => {
 const style = document.createElement('style');
 style.textContent = `
     .nav-link.active {
-        color: var(--primary-color);
+        color: var(--accent-color);
     }
 `;
 document.head.appendChild(style);
