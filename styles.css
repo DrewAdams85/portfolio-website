@@ -301,11 +301,11 @@ body {
     border-radius: 10px;
     overflow: hidden;
     box-shadow: var(--shadow);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease 0.2s;
 }
 
 .work-item:hover {
-    transform: translateY(-5px);
+    transform: scale(1.05);
 }
 
 .work-image-placeholder {
