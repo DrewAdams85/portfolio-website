@@ -24,3 +24,7 @@ yarn-error.log*
 
 # OS
 Thumbs.db
+
+# Office temp files
+~$*
+*.tmp
