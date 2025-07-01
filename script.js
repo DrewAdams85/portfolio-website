@@ -340,7 +340,7 @@ class StarEffect {
     drawStar(x, y, size, opacity) {
         this.ctx.save();
         this.ctx.globalAlpha = opacity;
-        this.ctx.fillStyle = '#ee6c4d';
+        this.ctx.fillStyle = '#a22c29';
         this.ctx.translate(x, y);
         
         // Draw a 5-pointed star
@@ -400,7 +400,7 @@ class StarEffect {
             // Draw trail
             if (star.trail.length > 1) {
                 this.ctx.save();
-                this.ctx.strokeStyle = '#ee6c4d';
+                this.ctx.strokeStyle = '#a22c29';
                 this.ctx.lineCap = 'round';
                 
                 for (let i = 1; i < star.trail.length; i++) {
