@@ -481,6 +481,7 @@ body {
     flex-wrap: wrap;
     gap: 0.5rem;
     margin: 1rem 0;
+    justify-content: center;
 }
 
 .work-tag {
