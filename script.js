@@ -119,3 +119,100 @@ document.addEventListener('DOMContentLoaded', () => {
         currentYearElement.textContent = new Date().getFullYear();
     }
 });
+
+// Physics-based bubble animation
+class BubblePhysics {
+    constructor() {
+        this.shapes = document.querySelectorAll('.shape');
+        this.hero = document.querySelector('.hero');
+        this.heroRect = this.hero.getBoundingClientRect();
+        this.bubbles = [];
+        this.lastScrollY = window.scrollY;
+        this.scrollVelocity = 0;
+        this.gravity = 0.5;
+        this.bounceDamping = 0.7;
+        this.maxVelocity = 20;
+        
+        this.init();
+    }
+    
+    init() {
+        // Initialize bubble data
+        this.shapes.forEach((shape, index) => {
+            const rect = shape.getBoundingClientRect();
+            const heroTop = this.heroRect.top + window.scrollY;
+            
+            this.bubbles.push({
+                element: shape,
+                x: rect.left - this.heroRect.left,
+                y: rect.top - heroTop,
+                vx: 0,
+                vy: 0,
+                originalY: rect.top - heroTop,
+                radius: rect.width / 2
+            });
+        });
+        
+        // Start animation loop
+        this.animate();
+        
+        // Add scroll listener
+        window.addEventListener('scroll', () => this.handleScroll());
+    }
+    
+    handleScroll() {
+        const currentScrollY = window.scrollY;
+        this.scrollVelocity = (currentScrollY - this.lastScrollY) * 0.5;
+        this.scrollVelocity = Math.max(-this.maxVelocity, Math.min(this.maxVelocity, this.scrollVelocity));
+        this.lastScrollY = currentScrollY;
+    }
+    
+    updatePhysics() {
+        this.bubbles.forEach((bubble, index) => {
+            // Apply scroll-based force
+            bubble.vy -= this.scrollVelocity * 0.3;
+            
+            // Apply gravity
+            bubble.vy += this.gravity;
+            
+            // Apply some floating motion
+            const time = Date.now() * 0.001;
+            const floatY = Math.sin(time + index) * 2;
+            
+            // Update position
+            bubble.y += bubble.vy + floatY;
+            
+            // Get hero boundaries relative to viewport
+            const heroBottom = this.hero.offsetHeight - bubble.radius * 2;
+            const heroTop = -bubble.radius;
+            
+            // Check boundaries and bounce
+            if (bubble.y > heroBottom) {
+                bubble.y = heroBottom;
+                bubble.vy *= -this.bounceDamping;
+            } else if (bubble.y < heroTop) {
+                bubble.y = heroTop;
+                bubble.vy *= -this.bounceDamping;
+            }
+            
+            // Apply air resistance
+            bubble.vy *= 0.98;
+            
+            // Apply position
+            bubble.element.style.transform = `translateY(${bubble.y - bubble.originalY}px) rotate(${time * 50 + index * 120}deg)`;
+        });
+        
+        // Gradually reduce scroll velocity
+        this.scrollVelocity *= 0.9;
+    }
+    
+    animate() {
+        this.updatePhysics();
+        requestAnimationFrame(() => this.animate());
+    }
+}
+
+// Initialize bubble physics when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    new BubblePhysics();
+});
