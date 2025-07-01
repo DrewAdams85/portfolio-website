@@ -308,10 +308,16 @@ body {
     transform: scale(1.05);
 }
 
-.work-image-placeholder {
+.work-image-placeholder, .work-image {
     width: 100%;
     height: 200px;
     background: linear-gradient(135deg, #3d5a80 0%, #293241 100%);
+}
+
+.work-image {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
 .work-item h3 {

@@ -430,6 +430,27 @@ class StarEffect {
     }
 }
 
+// Lazy load images
+function lazyLoadImages() {
+    const imageElements = document.querySelectorAll('[data-bg]');
+    
+    const imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                const src = img.getAttribute('data-bg');
+                if (src) {
+                    img.style.backgroundImage = `url('${src}')`;
+                    img.removeAttribute('data-bg');
+                    observer.unobserve(img);
+                }
+            }
+        });
+    });
+    
+    imageElements.forEach(img => imageObserver.observe(img));
+}
+
 // Initialize bubble physics when page loads
 window.addEventListener('load', () => {
     const shapes = document.querySelectorAll('.shape');
@@ -442,4 +463,7 @@ window.addEventListener('load', () => {
     
     // Initialize star effect for about section
     new StarEffect();
+    
+    // Initialize lazy loading
+    lazyLoadImages();
 });
