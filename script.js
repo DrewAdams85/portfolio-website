@@ -120,272 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// 3D Starfield with center-based orbital system
-class Starfield3D {
-    constructor() {
-        this.canvas = document.getElementById('starfield3d');
-        this.ctx = this.canvas.getContext('2d');
-        this.stars = [];
-        this.numStars = 300; // Doubled from 150
-        this.cameraDistance = 400; // Distance for perspective calculation
-        this.baseStarSize = 1.5; // Halved from 3
-        
-        // Mouse interaction for 3D rotation
-        this.globalPitch = 0; // X-axis rotation (up/down)
-        this.globalYaw = 0;   // Y-axis rotation (left/right)
-        
-        // Canvas center point - all stars orbit around this
-        this.centerX = 0;
-        this.centerY = 0;
-        
-        this.init();
-    }
-    
-    init() {
-        this.resize();
-        window.addEventListener('resize', () => this.resize());
-        
-        this.initStars();
-        this.setupMouseInteraction();
-        this.animate();
-    }
-    
-    resize() {
-        const hero = document.querySelector('.hero');
-        this.canvas.width = hero.offsetWidth;
-        this.canvas.height = hero.offsetHeight;
-        this.centerX = this.canvas.width / 2;
-        this.centerY = this.canvas.height / 2;
-    }
-    
-    /**
-     * Initialize stars with random orbital parameters
-     * Each star orbits around the center point on its own tilted plane
-     */
-    initStars() {
-        for (let i = 0; i < this.numStars; i++) {
-            // Random orbital radius (distance from center) - doubled range
-            const orbitalRadius = 100 + Math.random() * 500; // Was 50-300, now 100-600
-            
-            // Random starting angle on the orbit
-            const angle = Math.random() * Math.PI * 2;
-            
-            // Random orbital plane tilt (gives each star unique 3D orbit)
-            const tiltX = (Math.random() - 0.5) * Math.PI; // Tilt around X-axis
-            const tiltY = (Math.random() - 0.5) * Math.PI; // Tilt around Y-axis
-            
-            // Random orbital speed
-            const speed = (Math.random() - 0.5) * 0.02; // -0.01 to 0.01 radians/frame
-            
-            // Calculate initial 3D position
-            const x = orbitalRadius * Math.cos(angle);
-            const y = 0;
-            const z = orbitalRadius * Math.sin(angle);
-            
-            this.stars.push({
-                // Orbital parameters
-                orbitalRadius: orbitalRadius,
-                currentAngle: angle,
-                orbitalSpeed: speed,
-                tiltX: tiltX,
-                tiltY: tiltY,
-                
-                // Current 3D position (will be calculated each frame)
-                x: x,
-                y: y,
-                z: z,
-                
-                // Visual properties
-                brightness: 0.3 + Math.random() * 0.7,
-                baseSize: 0.5 + Math.random() * 1.5
-            });
-        }
-    }
-    
-    /**
-     * Set up mouse movement for 3D view rotation
-     */
-    setupMouseInteraction() {
-        let lastMouseX = 0;
-        let lastMouseY = 0;
-        let isFirstMove = true;
-        
-        document.addEventListener('mousemove', (e) => {
-            if (isFirstMove) {
-                lastMouseX = e.clientX;
-                lastMouseY = e.clientY;
-                isFirstMove = false;
-                return;
-            }
-            
-            const deltaX = e.clientX - lastMouseX;
-            const deltaY = e.clientY - lastMouseY;
-            
-            // Convert mouse movement to rotation
-            this.globalYaw += deltaX * 0.003;
-            this.globalPitch += deltaY * 0.003;
-            
-            lastMouseX = e.clientX;
-            lastMouseY = e.clientY;
-        });
-    }
-    
-    /**
-     * Calculate star's 3D position based on its orbital parameters
-     */
-    calculateStarPosition(star) {
-        // Update orbital angle
-        star.currentAngle += star.orbitalSpeed;
-        
-        // Calculate position on flat orbit
-        let x = star.orbitalRadius * Math.cos(star.currentAngle);
-        let y = 0;
-        let z = star.orbitalRadius * Math.sin(star.currentAngle);
-        
-        // Apply orbital plane tilts
-        // Tilt around X-axis
-        const cosX = Math.cos(star.tiltX);
-        const sinX = Math.sin(star.tiltX);
-        let newY = y * cosX - z * sinX;
-        let newZ = y * sinX + z * cosX;
-        y = newY;
-        z = newZ;
-        
-        // Tilt around Y-axis
-        const cosY = Math.cos(star.tiltY);
-        const sinY = Math.sin(star.tiltY);
-        let newX = x * cosY + z * sinY;
-        newZ = -x * sinY + z * cosY;
-        x = newX;
-        z = newZ;
-        
-        // Update star's 3D position
-        star.x = x;
-        star.y = y;
-        star.z = z;
-    }
-    
-    /**
-     * Apply global rotation based on mouse (view rotation)
-     */
-    applyViewRotation(star) {
-        let { x, y, z } = star;
-        
-        // Rotate around X-axis (pitch)
-        const cosP = Math.cos(this.globalPitch);
-        const sinP = Math.sin(this.globalPitch);
-        let newY = y * cosP - z * sinP;
-        let newZ = y * sinP + z * cosP;
-        y = newY;
-        z = newZ;
-        
-        // Rotate around Y-axis (yaw)
-        const cosY = Math.cos(this.globalYaw);
-        const sinY = Math.sin(this.globalYaw);
-        let newX = x * cosY + z * sinY;
-        newZ = -x * sinY + z * cosY;
-        x = newX;
-        z = newZ;
-        
-        return { x, y, z };
-    }
-    
-    /**
-     * Project 3D position to 2D screen with perspective
-     * Stars get smaller as they move away (positive Z)
-     */
-    projectTo2D(position3D) {
-        // Perspective division
-        const perspective = this.cameraDistance / (this.cameraDistance + position3D.z);
-        
-        return {
-            x: this.centerX + position3D.x * perspective,
-            y: this.centerY + position3D.y * perspective,
-            scale: perspective
-        };
-    }
-    
-    /**
-     * Draw a star with size based on distance
-     */
-    drawStar(x, y, scale, star) {
-        // Calculate size based on perspective and star's base size
-        const size = this.baseStarSize * scale * star.baseSize;
-        
-        // Calculate opacity based on distance (fade when far)
-        const opacity = star.brightness * scale;
-        
-        this.ctx.save();
-        
-        // Draw glow
-        const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, size * 3);
-        gradient.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
-        gradient.addColorStop(0.4, `rgba(255, 255, 255, ${opacity * 0.5})`);
-        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        
-        this.ctx.fillStyle = gradient;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, size * 3, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        // Draw core
-        this.ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, size, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        this.ctx.restore();
-    }
-    
-    /**
-     * Update and render all stars
-     */
-    update() {
-        // Clear canvas
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Calculate all star positions and prepare for sorting
-        const starsToRender = this.stars.map(star => {
-            // Update star's orbital position
-            this.calculateStarPosition(star);
-            
-            // Apply view rotation
-            const rotated = this.applyViewRotation(star);
-            
-            // Project to 2D
-            const projected = this.projectTo2D(rotated);
-            
-            return {
-                star: star,
-                rotated: rotated,
-                projected: projected
-            };
-        });
-        
-        // Sort by Z-depth (back to front)
-        starsToRender.sort((a, b) => b.rotated.z - a.rotated.z);
-        
-        // Draw stars
-        starsToRender.forEach(({ star, projected }) => {
-            if (projected.scale > 0) { // Only draw if in front of camera
-                this.drawStar(projected.x, projected.y, projected.scale, star);
-            }
-        });
-        
-        // Apply damping to rotation for smooth stop
-        this.globalPitch *= 0.95;
-        this.globalYaw *= 0.95;
-    }
-    
-    /**
-     * Animation loop
-     */
-    animate() {
-        this.update();
-        requestAnimationFrame(() => this.animate());
-    }
-}
-
 // Star effect for About section
 class StarEffect {
     constructor() {
@@ -580,9 +314,260 @@ function lazyLoadImages() {
     imageElements.forEach(img => imageObserver.observe(img));
 }
 
+// 3D Starfield with individual star rotations and mouse interaction
+class Starfield3D {
+    constructor() {
+        this.canvas = document.getElementById('starfield3d');
+        if (!this.canvas) return;
+        
+        this.ctx = this.canvas.getContext('2d');
+        
+        // Configuration
+        this.config = {
+            numStars: 150,        // Number of stars
+            sphereRadius: 600,    // Radius of the sphere stars are placed on (doubled)
+            cameraDistance: 800,  // Camera distance for perspective projection
+            baseStarSize: 2,      // Base size of stars
+            rotationSpeed: 0.0003, // Individual star rotation speed (reduced for subtlety)
+            mouseInfluence: 0.003, // Mouse movement influence (increased for responsiveness)
+            mouseDamping: 0.95    // Damping factor for smooth deceleration
+        };
+        
+        // State
+        this.stars = [];
+        this.globalRotation = { pitch: 0, yaw: 0 }; // Current rotation
+        this.targetRotation = { pitch: 0, yaw: 0 }; // Target rotation from mouse
+        this.mousePos = { x: 0, y: 0 };
+        this.lastMousePos = { x: 0, y: 0 };
+        this.isMouseOver = false;
+        
+        this.init();
+    }
+    
+    init() {
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        
+        // Mouse event listeners
+        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
+        
+        // Initialize stars
+        this.initStars();
+        
+        // Start animation
+        this.animate();
+    }
+    
+    /**
+     * Initialize N stars with random positions on/near a sphere
+     * Each star gets its own rotation axis through the center
+     */
+    initStars() {
+        for (let i = 0; i < this.config.numStars; i++) {
+            // Random position on sphere (spherical coordinates)
+            const theta = Math.random() * Math.PI * 2; // Azimuth angle
+            const phi = Math.acos(1 - 2 * Math.random()); // Polar angle (uniform distribution)
+            
+            // Add some variation to radius (70% to 130% of sphere radius)
+            const radiusVariation = 0.7 + Math.random() * 0.6;
+            const r = this.config.sphereRadius * radiusVariation;
+            
+            // Convert to Cartesian coordinates
+            const x = r * Math.sin(phi) * Math.cos(theta);
+            const y = r * Math.sin(phi) * Math.sin(theta);
+            const z = r * Math.cos(phi);
+            
+            // Random rotation axis (unit vector through origin)
+            const axisTheta = Math.random() * Math.PI * 2;
+            const axisPhi = Math.acos(1 - 2 * Math.random());
+            const axis = {
+                x: Math.sin(axisPhi) * Math.cos(axisTheta),
+                y: Math.sin(axisPhi) * Math.sin(axisTheta),
+                z: Math.cos(axisPhi)
+            };
+            
+            this.stars.push({
+                // Current position
+                x, y, z,
+                // Personal rotation axis
+                axis,
+                // Individual properties
+                rotationSpeed: this.config.rotationSpeed * (0.5 + Math.random()),
+                size: 0.5 + Math.random() * 1.5,
+                brightness: 0.5 + Math.random() * 0.5
+            });
+        }
+    }
+    
+    resize() {
+        this.canvas.width = this.canvas.offsetWidth;
+        this.canvas.height = this.canvas.offsetHeight;
+        this.centerX = this.canvas.width / 2;
+        this.centerY = this.canvas.height / 2;
+    }
+    
+    handleMouseMove(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        this.mousePos.x = e.clientX - rect.left;
+        this.mousePos.y = e.clientY - rect.top;
+        this.isMouseOver = true;
+        
+        // Calculate normalized mouse position (-1 to 1)
+        const normalizedX = (this.mousePos.x / this.canvas.width - 0.5) * 2;
+        const normalizedY = (this.mousePos.y / this.canvas.height - 0.5) * 2;
+        
+        // Set target rotation based on mouse position
+        // This creates a more intuitive "look at" effect
+        this.targetRotation.yaw = normalizedX * 0.5;   // Max 0.5 radians rotation
+        this.targetRotation.pitch = normalizedY * 0.3; // Max 0.3 radians rotation
+        
+        this.lastMousePos.x = this.mousePos.x;
+        this.lastMousePos.y = this.mousePos.y;
+    }
+    
+    handleMouseLeave() {
+        this.isMouseOver = false;
+        // Smoothly return to neutral position
+        this.targetRotation.pitch = 0;
+        this.targetRotation.yaw = 0;
+    }
+    
+    /**
+     * Rotate a point around an arbitrary axis using Rodrigues' rotation formula
+     * @param {Object} point - {x, y, z} point to rotate
+     * @param {Object} axis - {x, y, z} unit vector axis
+     * @param {number} angle - Rotation angle in radians
+     * @returns {Object} Rotated point {x, y, z}
+     */
+    rotateStar(point, axis, angle) {
+        // Rodrigues' rotation formula:
+        // v_rot = v*cos(θ) + (k×v)*sin(θ) + k*(k·v)*(1-cos(θ))
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        const oneMinusCos = 1 - cos;
+        
+        // Dot product k·v
+        const dot = axis.x * point.x + axis.y * point.y + axis.z * point.z;
+        
+        // Cross product k×v
+        const crossX = axis.y * point.z - axis.z * point.y;
+        const crossY = axis.z * point.x - axis.x * point.z;
+        const crossZ = axis.x * point.y - axis.y * point.x;
+        
+        return {
+            x: point.x * cos + crossX * sin + axis.x * dot * oneMinusCos,
+            y: point.y * cos + crossY * sin + axis.y * dot * oneMinusCos,
+            z: point.z * cos + crossZ * sin + axis.z * dot * oneMinusCos
+        };
+    }
+    
+    /**
+     * Apply global rotation for mouse interaction (pitch and yaw)
+     * @param {Object} point - {x, y, z} point to rotate
+     * @returns {Object} Rotated point {x, y, z}
+     */
+    applyGlobalRotation(point) {
+        // Apply yaw (rotation around Y axis)
+        const cosYaw = Math.cos(this.globalRotation.yaw);
+        const sinYaw = Math.sin(this.globalRotation.yaw);
+        const x1 = point.x * cosYaw - point.z * sinYaw;
+        const z1 = point.x * sinYaw + point.z * cosYaw;
+        
+        // Apply pitch (rotation around X axis)
+        const cosPitch = Math.cos(this.globalRotation.pitch);
+        const sinPitch = Math.sin(this.globalRotation.pitch);
+        const y2 = point.y * cosPitch - z1 * sinPitch;
+        const z2 = point.y * sinPitch + z1 * cosPitch;
+        
+        return { x: x1, y: y2, z: z2 };
+    }
+    
+    /**
+     * Project 3D point to 2D screen coordinates with perspective
+     * @param {Object} point3D - {x, y, z} point in 3D space
+     * @returns {Object} {x, y, size} in screen coordinates
+     */
+    projectStar(point3D) {
+        const d = this.config.cameraDistance;
+        
+        // Perspective projection formulas
+        const scale = 1 / (point3D.z / d + 1);
+        const screenX = this.centerX + (point3D.x * scale);
+        const screenY = this.centerY + (point3D.y * scale);
+        const size = this.config.baseStarSize * scale;
+        
+        return { x: screenX, y: screenY, size };
+    }
+    
+    /**
+     * Draw a single star as a filled circle
+     * @param {Object} star - Star object with projected coordinates and properties
+     */
+    drawStar(star, projected) {
+        // Calculate opacity based on z-depth (fade distant stars)
+        const depthFade = Math.max(0, Math.min(1, (600 + star.z) / 1200));
+        const opacity = star.brightness * depthFade;
+        
+        this.ctx.save();
+        this.ctx.globalAlpha = opacity;
+        this.ctx.fillStyle = '#ffffff';
+        
+        // Draw star as filled circle
+        this.ctx.beginPath();
+        this.ctx.arc(projected.x, projected.y, projected.size * star.size, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        this.ctx.restore();
+    }
+    
+    /**
+     * Main animation loop
+     */
+    animate() {
+        // Clear canvas with slight trail effect
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Smoothly interpolate rotation towards target
+        this.globalRotation.pitch += (this.targetRotation.pitch - this.globalRotation.pitch) * 0.1;
+        this.globalRotation.yaw += (this.targetRotation.yaw - this.globalRotation.yaw) * 0.1;
+        
+        // Process each star
+        this.stars.forEach(star => {
+            // 1. Rotate star around its personal axis
+            const rotatedPosition = this.rotateStar(
+                { x: star.x, y: star.y, z: star.z },
+                star.axis,
+                star.rotationSpeed
+            );
+            
+            // Update star position
+            star.x = rotatedPosition.x;
+            star.y = rotatedPosition.y;
+            star.z = rotatedPosition.z;
+            
+            // 2. Apply global mouse-controlled rotation
+            const globalRotated = this.applyGlobalRotation(rotatedPosition);
+            
+            // 3. Project to 2D and get screen size
+            const projected = this.projectStar(globalRotated);
+            
+            // 4. Draw the star
+            if (projected.x > 0 && projected.x < this.canvas.width &&
+                projected.y > 0 && projected.y < this.canvas.height) {
+                this.drawStar(star, projected);
+            }
+        });
+        
+        // Continue animation
+        requestAnimationFrame(() => this.animate());
+    }
+}
+
 // Initialize effects when page loads
 window.addEventListener('load', () => {
-    // Initialize 3D starfield for hero section
+    // Initialize 3D starfield
     new Starfield3D();
     
     // Initialize star effect for about section
