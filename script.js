@@ -120,141 +120,268 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Physics-based bubble animation with mouse interaction
-class BubblePhysics {
+// 3D Starfield with center-based orbital system
+class Starfield3D {
     constructor() {
-        this.shapes = document.querySelectorAll('.shape');
-        this.hero = document.querySelector('.hero');
-        this.bubbles = [];
-        this.mouseX = -1000;
-        this.mouseY = -1000;
-        this.repelRadius = 150; // Distance at which mouse repels bubbles
-        this.repelForce = 5; // Strength of repulsion
-        this.resetDelay = 2500; // 2.5 seconds
-        this.gravity = 0.1; // Light gravity
-        this.bounceDamping = 0.7; // Light bounce
+        this.canvas = document.getElementById('starfield3d');
+        this.ctx = this.canvas.getContext('2d');
+        this.stars = [];
+        this.numStars = 300; // Doubled from 150
+        this.cameraDistance = 400; // Distance for perspective calculation
+        this.baseStarSize = 1.5; // Halved from 3
+        
+        // Mouse interaction for 3D rotation
+        this.globalPitch = 0; // X-axis rotation (up/down)
+        this.globalYaw = 0;   // Y-axis rotation (left/right)
+        
+        // Canvas center point - all stars orbit around this
+        this.centerX = 0;
+        this.centerY = 0;
         
         this.init();
     }
     
     init() {
-        // Initialize bubble data
-        this.shapes.forEach((shape, index) => {
-            const rect = shape.getBoundingClientRect();
-            const heroRect = this.hero.getBoundingClientRect();
-            
-            // Get computed styles to find initial position
-            const computedStyle = window.getComputedStyle(shape);
-            const initialX = parseFloat(computedStyle.left) || 0;
-            const initialY = parseFloat(computedStyle.top) || 0;
-            
-            this.bubbles.push({
-                element: shape,
-                x: initialX,
-                y: initialY,
-                vx: 0,
-                vy: 0,
-                originalX: initialX,
-                originalY: initialY,
-                radius: rect.width / 2,
-                lastRepelTime: 0
-            });
-        });
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
         
-        // Start animation loop
+        this.initStars();
+        this.setupMouseInteraction();
         this.animate();
-        
-        // Add mouse listener
-        this.hero.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        this.hero.addEventListener('mouseleave', () => this.handleMouseLeave());
     }
     
-    handleMouseMove(e) {
-        const rect = this.hero.getBoundingClientRect();
-        this.mouseX = e.clientX - rect.left;
-        this.mouseY = e.clientY - rect.top;
+    resize() {
+        const hero = document.querySelector('.hero');
+        this.canvas.width = hero.offsetWidth;
+        this.canvas.height = hero.offsetHeight;
+        this.centerX = this.canvas.width / 2;
+        this.centerY = this.canvas.height / 2;
     }
     
-    handleMouseLeave() {
-        this.mouseX = -1000;
-        this.mouseY = -1000;
-    }
-    
-    updatePhysics() {
-        const currentTime = Date.now();
-        
-        this.bubbles.forEach((bubble, index) => {
-            // Calculate distance from mouse
-            const dx = this.mouseX - (bubble.x + bubble.radius);
-            const dy = this.mouseY - (bubble.y + bubble.radius);
-            const distance = Math.sqrt(dx * dx + dy * dy);
+    /**
+     * Initialize stars with random orbital parameters
+     * Each star orbits around the center point on its own tilted plane
+     */
+    initStars() {
+        for (let i = 0; i < this.numStars; i++) {
+            // Random orbital radius (distance from center) - doubled range
+            const orbitalRadius = 100 + Math.random() * 500; // Was 50-300, now 100-600
             
-            // Apply mouse repulsion if close enough
-            if (distance < this.repelRadius && distance > 0) {
-                // Calculate repulsion force
-                const force = (1 - distance / this.repelRadius) * this.repelForce;
-                const angle = Math.atan2(dy, dx);
+            // Random starting angle on the orbit
+            const angle = Math.random() * Math.PI * 2;
+            
+            // Random orbital plane tilt (gives each star unique 3D orbit)
+            const tiltX = (Math.random() - 0.5) * Math.PI; // Tilt around X-axis
+            const tiltY = (Math.random() - 0.5) * Math.PI; // Tilt around Y-axis
+            
+            // Random orbital speed
+            const speed = (Math.random() - 0.5) * 0.02; // -0.01 to 0.01 radians/frame
+            
+            // Calculate initial 3D position
+            const x = orbitalRadius * Math.cos(angle);
+            const y = 0;
+            const z = orbitalRadius * Math.sin(angle);
+            
+            this.stars.push({
+                // Orbital parameters
+                orbitalRadius: orbitalRadius,
+                currentAngle: angle,
+                orbitalSpeed: speed,
+                tiltX: tiltX,
+                tiltY: tiltY,
                 
-                // Apply force in opposite direction
-                bubble.vx -= Math.cos(angle) * force;
-                bubble.vy -= Math.sin(angle) * force;
+                // Current 3D position (will be calculated each frame)
+                x: x,
+                y: y,
+                z: z,
                 
-                bubble.lastRepelTime = currentTime;
+                // Visual properties
+                brightness: 0.3 + Math.random() * 0.7,
+                baseSize: 0.5 + Math.random() * 1.5
+            });
+        }
+    }
+    
+    /**
+     * Set up mouse movement for 3D view rotation
+     */
+    setupMouseInteraction() {
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let isFirstMove = true;
+        
+        document.addEventListener('mousemove', (e) => {
+            if (isFirstMove) {
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                isFirstMove = false;
+                return;
             }
             
-            // Apply gravity
-            bubble.vy += this.gravity;
+            const deltaX = e.clientX - lastMouseX;
+            const deltaY = e.clientY - lastMouseY;
             
-            // Update position
-            bubble.x += bubble.vx;
-            bubble.y += bubble.vy;
+            // Convert mouse movement to rotation
+            this.globalYaw += deltaX * 0.003;
+            this.globalPitch += deltaY * 0.003;
             
-            // Get hero boundaries
-            const heroWidth = this.hero.offsetWidth;
-            const heroHeight = this.hero.offsetHeight;
-            
-            // Check boundaries and bounce
-            if (bubble.y + bubble.radius * 2 > heroHeight) {
-                bubble.y = heroHeight - bubble.radius * 2;
-                bubble.vy *= -this.bounceDamping;
-            } else if (bubble.y < 0) {
-                bubble.y = 0;
-                bubble.vy *= -this.bounceDamping;
-            }
-            
-            if (bubble.x + bubble.radius * 2 > heroWidth) {
-                bubble.x = heroWidth - bubble.radius * 2;
-                bubble.vx *= -this.bounceDamping;
-            } else if (bubble.x < 0) {
-                bubble.x = 0;
-                bubble.vx *= -this.bounceDamping;
-            }
-            
-            // Apply air resistance
-            bubble.vx *= 0.98;
-            bubble.vy *= 0.98;
-            
-            // Return to original position after delay
-            const timeSinceRepel = currentTime - bubble.lastRepelTime;
-            if (timeSinceRepel > this.resetDelay) {
-                const resetFactor = Math.min((timeSinceRepel - this.resetDelay) / 1000, 1);
-                bubble.x += (bubble.originalX - bubble.x) * resetFactor * 0.05;
-                bubble.y += (bubble.originalY - bubble.y) * resetFactor * 0.05;
-            }
-            
-            // Add floating animation
-            const time = currentTime * 0.001;
-            const floatX = Math.sin(time + index) * 10;
-            const floatY = Math.sin(time * 1.3 + index) * 10;
-            
-            // Apply transform
-            const rotation = time * 30 + index * 120;
-            bubble.element.style.transform = `translate(${bubble.x + floatX}px, ${bubble.y + floatY}px) rotate(${rotation}deg)`;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
         });
     }
     
+    /**
+     * Calculate star's 3D position based on its orbital parameters
+     */
+    calculateStarPosition(star) {
+        // Update orbital angle
+        star.currentAngle += star.orbitalSpeed;
+        
+        // Calculate position on flat orbit
+        let x = star.orbitalRadius * Math.cos(star.currentAngle);
+        let y = 0;
+        let z = star.orbitalRadius * Math.sin(star.currentAngle);
+        
+        // Apply orbital plane tilts
+        // Tilt around X-axis
+        const cosX = Math.cos(star.tiltX);
+        const sinX = Math.sin(star.tiltX);
+        let newY = y * cosX - z * sinX;
+        let newZ = y * sinX + z * cosX;
+        y = newY;
+        z = newZ;
+        
+        // Tilt around Y-axis
+        const cosY = Math.cos(star.tiltY);
+        const sinY = Math.sin(star.tiltY);
+        let newX = x * cosY + z * sinY;
+        newZ = -x * sinY + z * cosY;
+        x = newX;
+        z = newZ;
+        
+        // Update star's 3D position
+        star.x = x;
+        star.y = y;
+        star.z = z;
+    }
+    
+    /**
+     * Apply global rotation based on mouse (view rotation)
+     */
+    applyViewRotation(star) {
+        let { x, y, z } = star;
+        
+        // Rotate around X-axis (pitch)
+        const cosP = Math.cos(this.globalPitch);
+        const sinP = Math.sin(this.globalPitch);
+        let newY = y * cosP - z * sinP;
+        let newZ = y * sinP + z * cosP;
+        y = newY;
+        z = newZ;
+        
+        // Rotate around Y-axis (yaw)
+        const cosY = Math.cos(this.globalYaw);
+        const sinY = Math.sin(this.globalYaw);
+        let newX = x * cosY + z * sinY;
+        newZ = -x * sinY + z * cosY;
+        x = newX;
+        z = newZ;
+        
+        return { x, y, z };
+    }
+    
+    /**
+     * Project 3D position to 2D screen with perspective
+     * Stars get smaller as they move away (positive Z)
+     */
+    projectTo2D(position3D) {
+        // Perspective division
+        const perspective = this.cameraDistance / (this.cameraDistance + position3D.z);
+        
+        return {
+            x: this.centerX + position3D.x * perspective,
+            y: this.centerY + position3D.y * perspective,
+            scale: perspective
+        };
+    }
+    
+    /**
+     * Draw a star with size based on distance
+     */
+    drawStar(x, y, scale, star) {
+        // Calculate size based on perspective and star's base size
+        const size = this.baseStarSize * scale * star.baseSize;
+        
+        // Calculate opacity based on distance (fade when far)
+        const opacity = star.brightness * scale;
+        
+        this.ctx.save();
+        
+        // Draw glow
+        const gradient = this.ctx.createRadialGradient(x, y, 0, x, y, size * 3);
+        gradient.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
+        gradient.addColorStop(0.4, `rgba(255, 255, 255, ${opacity * 0.5})`);
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        
+        this.ctx.fillStyle = gradient;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, size * 3, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Draw core
+        this.ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, size, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        this.ctx.restore();
+    }
+    
+    /**
+     * Update and render all stars
+     */
+    update() {
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Calculate all star positions and prepare for sorting
+        const starsToRender = this.stars.map(star => {
+            // Update star's orbital position
+            this.calculateStarPosition(star);
+            
+            // Apply view rotation
+            const rotated = this.applyViewRotation(star);
+            
+            // Project to 2D
+            const projected = this.projectTo2D(rotated);
+            
+            return {
+                star: star,
+                rotated: rotated,
+                projected: projected
+            };
+        });
+        
+        // Sort by Z-depth (back to front)
+        starsToRender.sort((a, b) => b.rotated.z - a.rotated.z);
+        
+        // Draw stars
+        starsToRender.forEach(({ star, projected }) => {
+            if (projected.scale > 0) { // Only draw if in front of camera
+                this.drawStar(projected.x, projected.y, projected.scale, star);
+            }
+        });
+        
+        // Apply damping to rotation for smooth stop
+        this.globalPitch *= 0.95;
+        this.globalYaw *= 0.95;
+    }
+    
+    /**
+     * Animation loop
+     */
     animate() {
-        this.updatePhysics();
+        this.update();
         requestAnimationFrame(() => this.animate());
     }
 }
@@ -453,15 +580,10 @@ function lazyLoadImages() {
     imageElements.forEach(img => imageObserver.observe(img));
 }
 
-// Initialize bubble physics when page loads
+// Initialize effects when page loads
 window.addEventListener('load', () => {
-    const shapes = document.querySelectorAll('.shape');
-    if (shapes.length > 0) {
-        console.log('Initializing bubble physics with', shapes.length, 'shapes');
-        new BubblePhysics();
-    } else {
-        console.log('No shapes found for bubble physics');
-    }
+    // Initialize 3D starfield for hero section
+    new Starfield3D();
     
     // Initialize star effect for about section
     new StarEffect();
