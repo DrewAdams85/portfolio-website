@@ -299,8 +299,53 @@ body {
 
 .contact-description {
     color: var(--text-light);
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
     font-size: 1.1rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.contact-form-wrapper {
+    max-width: 600px;
+    margin: 0 auto 3rem;
+}
+
+.contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.contact-form input,
+.contact-form textarea {
+    padding: 0.9rem 1.2rem;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: var(--white);
+    transition: border-color 0.3s ease;
+    resize: vertical;
+}
+
+.contact-form input:focus,
+.contact-form textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.form-submit {
+    align-self: flex-start;
+    padding: 0.9rem 2.5rem;
+    font-size: 1rem;
+    cursor: pointer;
 }
 
 .contact-links {
