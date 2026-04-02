@@ -64,7 +64,7 @@ const observer = new IntersectionObserver((entries) => {
 
 // Observe all sections for fade-in animation
 document.addEventListener('DOMContentLoaded', () => {
-    const sections = document.querySelectorAll('.about, .work, .contact');
+    const sections = document.querySelectorAll('.work, .contact');
     sections.forEach(section => {
         section.style.opacity = '0';
         section.style.transform = 'translateY(30px)';
@@ -120,199 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Star effect for About section
-class StarEffect {
-    constructor() {
-        this.aboutSection = document.querySelector('.about');
-        this.stars = [];
-        this.mouseX = 0;
-        this.mouseY = 0;
-        this.lastStarTime = 0;
-        
-        this.init();
-    }
-    
-    init() {
-        this.canvas = document.createElement('canvas');
-        this.canvas.style.position = 'absolute';
-        this.canvas.style.top = '0';
-        this.canvas.style.left = '0';
-        this.canvas.style.pointerEvents = 'none';
-        this.canvas.style.zIndex = '0';
-        this.aboutSection.style.position = 'relative';
-        
-        // Insert canvas as first child so it's behind all content
-        this.aboutSection.insertBefore(this.canvas, this.aboutSection.firstChild);
-        
-        this.ctx = this.canvas.getContext('2d');
-        this.resize();
-        
-        window.addEventListener('resize', () => this.resize());
-        this.aboutSection.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        this.aboutSection.addEventListener('mouseleave', () => this.handleMouseLeave());
-        
-        this.animate();
-    }
-    
-    resize() {
-        const rect = this.aboutSection.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height;
-    }
-    
-    handleMouseMove(e) {
-        const rect = this.aboutSection.getBoundingClientRect();
-        this.mouseX = e.clientX - rect.left;
-        this.mouseY = e.clientY - rect.top;
-        
-        // Create new star at mouse position
-        const currentTime = Date.now();
-        if (currentTime - this.lastStarTime > 100) { // Create star every 100ms
-            this.createStar(this.mouseX, this.mouseY);
-            this.lastStarTime = currentTime;
-        }
-    }
-    
-    handleMouseLeave() {
-        this.mouseX = -1;
-        this.mouseY = -1;
-    }
-    
-    createStar(x, y) {
-        // Random direction and speed for shooting effect
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 2 + 1; // 1-3 pixels per frame
-        
-        const star = {
-            x: x,
-            y: y,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed,
-            size: Math.random() * 3 + 2,
-            opacity: 1,
-            age: 0,
-            id: Date.now() + Math.random(),
-            trail: [], // Store trail positions
-            maxDistance: 50,
-            startX: x,
-            startY: y
-        };
-        this.stars.push(star);
-    }
-    
-    drawStar(x, y, size, opacity) {
-        this.ctx.save();
-        this.ctx.globalAlpha = opacity;
-        this.ctx.fillStyle = '#a22c29';
-        this.ctx.translate(x, y);
-        
-        // Draw a 5-pointed star
-        this.ctx.beginPath();
-        for (let i = 0; i < 5; i++) {
-            const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
-            const x = Math.cos(angle) * size;
-            const y = Math.sin(angle) * size;
-            if (i === 0) {
-                this.ctx.moveTo(x, y);
-            } else {
-                this.ctx.lineTo(x, y);
-            }
-        }
-        this.ctx.closePath();
-        this.ctx.fill();
-        this.ctx.restore();
-    }
-    
-    updateStars() {
-        // Update stars
-        this.stars = this.stars.filter(star => {
-            star.age += 16; // ~60fps
-            
-            // Add current position to trail
-            star.trail.push({ x: star.x, y: star.y, opacity: star.opacity });
-            if (star.trail.length > 10) { // Keep last 10 positions for trail
-                star.trail.shift();
-            }
-            
-            // Update position for shooting star effect
-            const distance = Math.sqrt(
-                Math.pow(star.x - star.startX, 2) + 
-                Math.pow(star.y - star.startY, 2)
-            );
-            
-            if (distance < star.maxDistance) {
-                star.x += star.vx;
-                star.y += star.vy;
-                star.vx *= 0.98; // Slow down gradually
-                star.vy *= 0.98;
-            }
-            
-            star.opacity = Math.max(0, 1 - star.age / 3000); // Fade out over 3 seconds
-            
-            
-            return star.opacity > 0;
-        });
-    }
-    
-    draw() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        
-        // Draw stars with trails
-        this.stars.forEach(star => {
-            // Draw trail
-            if (star.trail.length > 1) {
-                this.ctx.save();
-                this.ctx.strokeStyle = '#a22c29';
-                this.ctx.lineCap = 'round';
-                
-                for (let i = 1; i < star.trail.length; i++) {
-                    const prev = star.trail[i - 1];
-                    const curr = star.trail[i];
-                    
-                    this.ctx.globalAlpha = (i / star.trail.length) * curr.opacity * 0.5;
-                    this.ctx.lineWidth = (i / star.trail.length) * star.size * 0.8;
-                    
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(prev.x, prev.y);
-                    this.ctx.lineTo(curr.x, curr.y);
-                    this.ctx.stroke();
-                }
-                this.ctx.restore();
-            }
-            
-            // Draw star
-            this.drawStar(star.x, star.y, star.size, star.opacity);
-        });
-    }
-    
-    animate() {
-        this.updateStars();
-        this.draw();
-        requestAnimationFrame(() => this.animate());
-    }
-}
-
-// Lazy load images
-function lazyLoadImages() {
-    const imageElements = document.querySelectorAll('[data-bg]');
-    
-    const imageObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const img = entry.target;
-                const src = img.getAttribute('data-bg');
-                if (src) {
-                    img.style.backgroundImage = `url('${src}')`;
-                    img.removeAttribute('data-bg');
-                    observer.unobserve(img);
-                }
-            }
-        });
-    });
-    
-    imageElements.forEach(img => imageObserver.observe(img));
-}
 
 // 3D Starfield with individual star rotations and mouse interaction
 class Starfield3D {
@@ -340,7 +147,8 @@ class Starfield3D {
         this.mousePos = { x: 0, y: 0 };
         this.lastMousePos = { x: 0, y: 0 };
         this.isMouseOver = false;
-        
+        this.time = 0;
+
         this.init();
     }
     
@@ -395,7 +203,23 @@ class Starfield3D {
                 // Individual properties
                 rotationSpeed: this.config.rotationSpeed * (0.5 + Math.random()),
                 size: 0.5 + Math.random() * 1.5,
-                brightness: 0.5 + Math.random() * 0.5
+                brightness: 0.5 + Math.random() * 0.5,
+                // Twinkle properties
+                twinkleSpeed: 0.034 + Math.random() * 0.134, // cycles per second (varied per star)
+                twinklePhase: Math.random() * Math.PI * 2, // random starting phase
+                twinkleAmount: 0.2 + Math.random() * 0.4, // how much brightness varies (20-60%)
+                // Star color temperature (weighted toward white)
+                color: (() => {
+                    const colors = [
+                        { r: 255, g: 255, b: 255 }, // white
+                        { r: 255, g: 255, b: 255 }, // white (extra weight)
+                        { r: 200, g: 220, b: 255 }, // pale blue (hot)
+                        { r: 255, g: 240, b: 200 }, // soft gold (warm)
+                        { r: 255, g: 210, b: 200 }, // faint red (cool)
+                        { r: 220, g: 230, b: 255 }, // light blue-white
+                    ];
+                    return colors[Math.floor(Math.random() * colors.length)];
+                })()
             });
         }
     }
@@ -507,15 +331,35 @@ class Starfield3D {
     drawStar(star, projected) {
         // Calculate opacity based on z-depth (fade distant stars)
         const depthFade = Math.max(0, Math.min(1, (600 + star.z) / 1200));
-        const opacity = star.brightness * depthFade;
+        // Apply twinkle: sine wave oscillates brightness around its base value
+        const twinkle = 1 - star.twinkleAmount * (0.5 + 0.5 * Math.sin(this.time * star.twinkleSpeed * Math.PI * 2 + star.twinklePhase));
+        const opacity = star.brightness * depthFade * twinkle;
         
         this.ctx.save();
-        this.ctx.globalAlpha = opacity;
-        this.ctx.fillStyle = '#ffffff';
-        
-        // Draw star as filled circle
+
+        const radius = projected.size * star.size;
+        const glowRadius = radius * 3;
+
+        // Draw soft glow halo
+        const glow = this.ctx.createRadialGradient(
+            projected.x, projected.y, 0,
+            projected.x, projected.y, glowRadius
+        );
+        const { r, g, b } = star.color;
+        glow.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${opacity * 0.2})`);
+        glow.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, ${opacity * 0.05})`);
+        glow.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+
+        this.ctx.fillStyle = glow;
         this.ctx.beginPath();
-        this.ctx.arc(projected.x, projected.y, projected.size * star.size, 0, Math.PI * 2);
+        this.ctx.arc(projected.x, projected.y, glowRadius, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Draw bright core
+        this.ctx.globalAlpha = opacity;
+        this.ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        this.ctx.beginPath();
+        this.ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
         this.ctx.fill();
         
         this.ctx.restore();
@@ -525,9 +369,11 @@ class Starfield3D {
      * Main animation loop
      */
     animate() {
-        // Clear canvas with slight trail effect
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        // Track time for twinkle animation
+        this.time += 1 / 60; // approximate seconds at 60fps
+
+        // Full clear each frame for crisp rendering
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         // Smoothly interpolate rotation towards target
         this.globalRotation.pitch += (this.targetRotation.pitch - this.globalRotation.pitch) * 0.1;
@@ -565,14 +411,305 @@ class Starfield3D {
     }
 }
 
+// Code Grab Modal
+class CodeGrabModal {
+    constructor() {
+        this.modal = document.getElementById('codeModal');
+        this.openBtn = document.getElementById('codeGrabBtn');
+        this.closeBtn = document.getElementById('codeModalClose');
+        this.copyBtn = document.getElementById('codeCopyBtn');
+        this.downloadBtn = document.getElementById('codeDownloadBtn');
+        this.codeContent = document.getElementById('codeContent');
+        this.tabs = document.querySelectorAll('.code-tab');
+        this.activeTab = 'standalone';
+
+        if (!this.modal) return;
+        this.init();
+    }
+
+    init() {
+        this.openBtn.addEventListener('click', () => this.open());
+        this.closeBtn.addEventListener('click', () => this.close());
+        this.modal.addEventListener('click', (e) => {
+            if (e.target === this.modal) this.close();
+        });
+        this.tabs.forEach(tab => {
+            tab.addEventListener('click', () => this.switchTab(tab.dataset.tab));
+        });
+        this.copyBtn.addEventListener('click', () => this.copy());
+        this.downloadBtn.addEventListener('click', () => this.download());
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') this.close();
+        });
+    }
+
+    open() {
+        this.modal.classList.add('active');
+        this.showCode(this.activeTab);
+    }
+
+    close() {
+        this.modal.classList.remove('active');
+    }
+
+    switchTab(tab) {
+        this.activeTab = tab;
+        this.tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+        this.showCode(tab);
+    }
+
+    getStandaloneCode() {
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Starfield Effect</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; }
+canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+</style>
+</head>
+<body>
+<canvas id="starfield3d"></canvas>
+<script>
+${this.getJSCode()}
+<\\/script>
+</body>
+</html>`;
+    }
+
+    getJSCode() {
+        return `class Starfield3D {
+  constructor(canvasId = 'starfield3d') {
+    this.canvas = document.getElementById(canvasId);
+    if (!this.canvas) return;
+    this.ctx = this.canvas.getContext('2d');
+    this.config = {
+      numStars: 150,
+      sphereRadius: 600,
+      cameraDistance: 800,
+      baseStarSize: 2,
+      rotationSpeed: 0.0003,
+      mouseInfluence: 0.003,
+      mouseDamping: 0.95
+    };
+    this.stars = [];
+    this.globalRotation = { pitch: 0, yaw: 0 };
+    this.targetRotation = { pitch: 0, yaw: 0 };
+    this.mousePos = { x: 0, y: 0 };
+    this.lastMousePos = { x: 0, y: 0 };
+    this.isMouseOver = false;
+    this.time = 0;
+    this.init();
+  }
+
+  init() {
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+    this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
+    this.initStars();
+    this.animate();
+  }
+
+  initStars() {
+    const colors = [
+      { r: 255, g: 255, b: 255 },
+      { r: 255, g: 255, b: 255 },
+      { r: 200, g: 220, b: 255 },
+      { r: 255, g: 240, b: 200 },
+      { r: 255, g: 210, b: 200 },
+      { r: 220, g: 230, b: 255 },
+    ];
+    for (let i = 0; i < this.config.numStars; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(1 - 2 * Math.random());
+      const r = this.config.sphereRadius * (0.7 + Math.random() * 0.6);
+      const axisTheta = Math.random() * Math.PI * 2;
+      const axisPhi = Math.acos(1 - 2 * Math.random());
+      this.stars.push({
+        x: r * Math.sin(phi) * Math.cos(theta),
+        y: r * Math.sin(phi) * Math.sin(theta),
+        z: r * Math.cos(phi),
+        axis: {
+          x: Math.sin(axisPhi) * Math.cos(axisTheta),
+          y: Math.sin(axisPhi) * Math.sin(axisTheta),
+          z: Math.cos(axisPhi)
+        },
+        rotationSpeed: this.config.rotationSpeed * (0.5 + Math.random()),
+        size: 0.5 + Math.random() * 1.5,
+        brightness: 0.5 + Math.random() * 0.5,
+        twinkleSpeed: 0.034 + Math.random() * 0.134,
+        twinklePhase: Math.random() * Math.PI * 2,
+        twinkleAmount: 0.2 + Math.random() * 0.4,
+        color: colors[Math.floor(Math.random() * colors.length)]
+      });
+    }
+  }
+
+  resize() {
+    this.canvas.width = this.canvas.offsetWidth;
+    this.canvas.height = this.canvas.offsetHeight;
+    this.centerX = this.canvas.width / 2;
+    this.centerY = this.canvas.height / 2;
+  }
+
+  handleMouseMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const x = (((e.clientX - rect.left) / this.canvas.width) - 0.5) * 2;
+    const y = (((e.clientY - rect.top) / this.canvas.height) - 0.5) * 2;
+    this.targetRotation.yaw = x * 0.5;
+    this.targetRotation.pitch = y * 0.3;
+    this.isMouseOver = true;
+  }
+
+  handleMouseLeave() {
+    this.isMouseOver = false;
+    this.targetRotation.pitch = 0;
+    this.targetRotation.yaw = 0;
+  }
+
+  rotateStar(p, axis, angle) {
+    const cos = Math.cos(angle), sin = Math.sin(angle);
+    const dot = axis.x*p.x + axis.y*p.y + axis.z*p.z;
+    const cx = axis.y*p.z - axis.z*p.y;
+    const cy = axis.z*p.x - axis.x*p.z;
+    const cz = axis.x*p.y - axis.y*p.x;
+    return {
+      x: p.x*cos + cx*sin + axis.x*dot*(1-cos),
+      y: p.y*cos + cy*sin + axis.y*dot*(1-cos),
+      z: p.z*cos + cz*sin + axis.z*dot*(1-cos)
+    };
+  }
+
+  applyGlobalRotation(p) {
+    const cy = Math.cos(this.globalRotation.yaw), sy = Math.sin(this.globalRotation.yaw);
+    const x1 = p.x*cy - p.z*sy, z1 = p.x*sy + p.z*cy;
+    const cp = Math.cos(this.globalRotation.pitch), sp = Math.sin(this.globalRotation.pitch);
+    return { x: x1, y: p.y*cp - z1*sp, z: p.y*sp + z1*cp };
+  }
+
+  animate() {
+    this.time += 1/60;
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.globalRotation.pitch += (this.targetRotation.pitch - this.globalRotation.pitch) * 0.1;
+    this.globalRotation.yaw += (this.targetRotation.yaw - this.globalRotation.yaw) * 0.1;
+    const d = this.config.cameraDistance;
+    this.stars.forEach(star => {
+      const rot = this.rotateStar(star, star.axis, star.rotationSpeed);
+      star.x = rot.x; star.y = rot.y; star.z = rot.z;
+      const gr = this.applyGlobalRotation(rot);
+      const scale = 1 / (gr.z / d + 1);
+      const sx = this.centerX + gr.x * scale;
+      const sy = this.centerY + gr.y * scale;
+      const sz = this.config.baseStarSize * scale;
+      if (sx < 0 || sx > this.canvas.width || sy < 0 || sy > this.canvas.height) return;
+      const depthFade = Math.max(0, Math.min(1, (600 + star.z) / 1200));
+      const twinkle = 1 - star.twinkleAmount * (0.5 + 0.5 * Math.sin(this.time * star.twinkleSpeed * Math.PI * 2 + star.twinklePhase));
+      const opacity = star.brightness * depthFade * twinkle;
+      const { r, g, b } = star.color;
+      const radius = sz * star.size;
+      const glowR = radius * 3;
+      this.ctx.save();
+      const glow = this.ctx.createRadialGradient(sx, sy, 0, sx, sy, glowR);
+      glow.addColorStop(0, \`rgba(\${r},\${g},\${b},\${opacity*0.2})\`);
+      glow.addColorStop(0.3, \`rgba(\${r},\${g},\${b},\${opacity*0.05})\`);
+      glow.addColorStop(1, \`rgba(\${r},\${g},\${b},0)\`);
+      this.ctx.fillStyle = glow;
+      this.ctx.beginPath();
+      this.ctx.arc(sx, sy, glowR, 0, Math.PI*2);
+      this.ctx.fill();
+      this.ctx.globalAlpha = opacity;
+      this.ctx.fillStyle = \`rgb(\${r},\${g},\${b})\`;
+      this.ctx.beginPath();
+      this.ctx.arc(sx, sy, radius, 0, Math.PI*2);
+      this.ctx.fill();
+      this.ctx.restore();
+    });
+    requestAnimationFrame(() => this.animate());
+  }
+}
+
+new Starfield3D();`;
+    }
+
+    getCSSCode() {
+        return `/* 3D Starfield — add a <canvas id="starfield3d"> to your HTML */
+.starfield-container {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #000000 0%, #333333 100%);
+  overflow: hidden;
+}
+
+.starfield-container canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Place your content inside with z-index: 2 to sit above the stars */
+.starfield-content {
+  position: relative;
+  z-index: 2;
+}`;
+    }
+
+    showCode(tab) {
+        let code = '';
+        if (tab === 'standalone') code = this.getStandaloneCode();
+        else if (tab === 'js') code = this.getJSCode();
+        else if (tab === 'css') code = this.getCSSCode();
+        this.codeContent.textContent = code;
+    }
+
+    copy() {
+        navigator.clipboard.writeText(this.codeContent.textContent).then(() => {
+            this.copyBtn.textContent = 'Copied!';
+            setTimeout(() => { this.copyBtn.textContent = 'Copy Code'; }, 2000);
+        });
+    }
+
+    download() {
+        const code = this.codeContent.textContent;
+        let filename, type;
+        if (this.activeTab === 'standalone') {
+            filename = 'starfield-effect.html';
+            type = 'text/html';
+        } else if (this.activeTab === 'js') {
+            filename = 'starfield-effect.js';
+            type = 'text/javascript';
+        } else {
+            filename = 'starfield-effect.css';
+            type = 'text/css';
+        }
+        const blob = new Blob([code], { type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+}
+
 // Initialize effects when page loads
 window.addEventListener('load', () => {
     // Initialize 3D starfield
     new Starfield3D();
-    
-    // Initialize star effect for about section
-    new StarEffect();
-    
-    // Initialize lazy loading
-    lazyLoadImages();
+
+    // Initialize code grab modal
+    new CodeGrabModal();
 });
